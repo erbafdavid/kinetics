@@ -13,12 +13,13 @@
 %%% The program will open the following figures :
 %%%      Figure 1 : Instantaneous position of particules
 %%%      Figure 2 : Statistics of particules in vertical 'bins'
-%%%      Figure 3 : Force exerted on right boundary due to collision and its averaged value ("Pressure") 
+%%%      Figure 3 : x-Force exerted on right boundary due to collision and its averaged value ("Pressure") 
+%%%      Figure 6 : y-Force exerted on right boundary due to collision and its averaged value ("Stress") 
 %%% 3/ Displace the figures on screen to avoid overlap
 %%% 4/ press "enter" to run the simulation
 clear all;
 
-%%% Version beta : thermostat (non validé)
+%%% Version beta : thermostat (non valid?)
 %%% 
 %%% PARAMETERS :
 %%%
@@ -32,9 +33,11 @@ disp(' Which kind of simulation do you want to do ?')
 
 disp(' [1] -> state equation of the gas')
 disp(' [2] -> diffusion process with two populations of particules') 
-disp(' [3] -> diffusion of vertical momentum')
-disp(' [4] -> diffusion of temperature')
-disp(' [5] -> shock wave');
+disp(' [3] -> vertical shear flow (wall-driven)')
+disp(' [4] -> vertical shear flow (with initial discontinuity)')
+disp(' [5] -> diffusion of temperature')
+disp(' [6] -> shock wave');
+disp(' [7] -> custom');
 disp(' [many other possibilities, under work]');
 
 choice = input(' your choice ?') 
@@ -63,18 +66,25 @@ vq2 = sqrt(T2);
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
 color_2 = 'r'; % color used for plots 
 % Properties of the boundaries
-BC_left = 'wall'; % allowed values are 'wall' and 'thermostat'
-BC_updown = 'periodic' % allowed values are 'wall' and 'periodic'
-BC_right = 'wall';
+BC_left = 'PerfectWall'; % allowed values are 'PerfectWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are 'PerfectWall' and 'periodic'
+BC_right = 'PerfectWall';
 % in case left boundary is a thermostat, one can impose the mean velocity
 % and temperature in an oscillating way
-Twall_m = 0;
-Twall_a = 0;
-Uwall_m = 0;
-Uwall_a = 0;
-Vwall_m = 1;
-Vwall_a = 0;
-omega = 0.1;
+%Twall_m = 0;
+%Twall_a = 0;
+%Uwall_m = 0;
+%Uwall_a = 0;
+%Vwall_m = 1;
+%Vwall_a = 0;
+%omega = 0.1;
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 0;
+
 X_fictive_surface= 0.5;
 % plotting parameters
 Nbin = 10; % number of vertical 'bins' for statistics
@@ -83,6 +93,7 @@ fig2 = 1; % set to 1 to plot 'pressure' force on right boundary and temperature 
 fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
 fig4 = 0; % set to 1 to plot density of particules 1 at successive instants in figure 4 
 fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 0;
 stepfig = 2; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
 stepfig4 = 20; % idem for fig. (4,5)
 % Numerical parameters
@@ -93,7 +104,7 @@ Naveraging = 100000; % for time-averaging of pressure, etc... if large value ave
 pausemode = 0; % set to 0 for automatic time advance, and to 1 for manual (press enter to advance) 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Choice 1 
+%% Choice 2 
 elseif(choice==2)
 
 % Dimensions
@@ -116,18 +127,17 @@ vq2 = sqrt(T2);
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
 color_2 = 'r'; % color used for plots 
 % Properties of the boundaries
-BC_left = 'wall'; % allowed values are 'wall' and 'thermostat'
-BC_updown = 'periodic' % allowed values are 'wall' and 'periodic'
-BC_right = 'wall';
+BC_left = 'PerfectWall'; % allowed values are 'PerfectWall' and 'RealWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are  'periodic'
+BC_right = 'PerfectWall';
 % in case left boundary is a thermostat, one can impose the mean velocity
 % and temperature in an oscillating way
-Twall_m = 0;
-Twall_a = 0;
-Uwall_m = 0;
-Uwall_a = 0;
-Vwall_m = 1;
-Vwall_a = 0;
-omega = 0.1;
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 0;
 X_fictive_surface= 0.5;
 % plotting parameters
 Nbin = 10; % number of vertical 'bins' for statistics
@@ -136,6 +146,7 @@ fig2 = 0; % set to 1 to plot 'pressure' force on right boundary and temperature 
 fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
 fig4 = 1; % set to 1 to plot density of particules 1 at successive instants in figure 4 
 fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 0;
 stepfig = 2; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
 stepfig4 = 20; % idem for fig. (4,5)
 % Numerical parameters
@@ -155,32 +166,31 @@ Ly = 1;
 particulediameter = 0.01; % 0.01 is a good value if N is of order 1000
 g= 0.;
 % Properties of particules 1 (initially in left half domain)
-Nparticules_1 = 500; 
-X1min = 0; X1max = 0.5; %min and max position of domain initially occupied
-T1 = 2; % 'temperature' 
+Nparticules_1 = 950; 
+X1min = 0; X1max = 1.; %min and max position of domain initially occupied
+T1 = 4; % 'temperature' 
 vq1 = sqrt(T1);
-Um1 = 0; Vm1 = 1; % mean horizontal and vertical velocities
+Um1 = 0; Vm1 = 0; % mean horizontal and vertical velocities
 color_1 = 'b'; % color used for plots
 % Properties of particules 2 (initially in left half domain)
-Nparticules_2 = 500; 
-X2min = 0.5; X2max = 1; %min and max position of domain initially occupied
-T2 = 2; % 'temperature' 
+Nparticules_2 = 50; 
+X2min = 0.; X2max = 1; %min and max position of domain initially occupied
+T2 = 4; % 'temperature' 
 vq2 = sqrt(T2); 
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
-color_2 = 'b'; % color used for plots 
+color_2 = 'r'; % color used for plots 
 % Properties of the boundaries
-BC_left = 'wall'; % allowed values are 'wall' and 'thermostat'
-BC_updown = 'periodic' % allowed values are 'wall' and 'periodic'
-BC_right = 'wall';
-% in case left boundary is a thermostat, one can impose the mean velocity
-% and temperature in an oscillating way
-Twall_m = 0;
-Twall_a = 0;
-Uwall_m = 0;
-Uwall_a = 0;
-Vwall_m = 1;
-Vwall_a = 0;
-omega = 0.1;
+BC_left = 'RealWall'; % allowed values are 'PerfectWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are 'PerfectWall' and 'periodic'
+BC_right = 'RealWall';
+% in case left boundary is a real wall, one can impose the mean velocity and temperature 
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 2;
+
 X_fictive_surface= 0.5;
 % plotting parameters
 Nbin = 10; % number of vertical 'bins' for statistics
@@ -188,15 +198,17 @@ fig1 = 1; % set to 1 for figure of particule positions in figure 1
 fig2 = 0; % set to 1 to plot 'pressure' force on right boundary and temperature in figure 2 
 fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
 fig4 = 0; % set to 1 to plot density of particules 1 at successive instants in figure 4 
-fig5 = 1; % set to 1 to plot vertical velocities at successive instants in figure 5
-stepfig = 2; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
+fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 1; % to plot 'stress' and flux of vertical momentum
+stepfig = 5; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
 stepfig4 = 20; % idem for fig. (4,5)
 % Numerical parameters
-Tmax = 1000; % end of simulation 
+Tmax = 10; % end of simulation 
 dt = 0.005; % time step ; dt should be smaller than diam/vq to resolve properly collisions
 diameter_for_plots = 345*particulediameter; % diameter or particules in pixels for plots
 Naveraging = 100000; % for time-averaging of pressure, etc... if large value average since beginning of simulation
 pausemode = 0; % set to 0 for automatic time advance, and to 1 for manual (press enter to advance) 
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Choice 4 
@@ -209,7 +221,60 @@ particulediameter = 0.01; % 0.01 is a good value if N is of order 1000
 g= 0.;
 % Properties of particules 1 (initially in left half domain)
 Nparticules_1 = 500; 
-X1min = 0; X1max = 1; %min and max position of domain initially occupied
+X1min = 0; X1max = 0.5; %min and max position of domain initially occupied
+T1 = 4; % 'temperature' 
+vq1 = sqrt(T1);
+Um1 = 0; Vm1 = 0; % mean horizontal and vertical velocities
+color_1 = 'b'; % color used for plots
+% Properties of particules 2 (initially in left half domain)
+Nparticules_2 = 500; 
+X2min = 0.5; X2max = 1; %min and max position of domain initially occupied
+T2 = 4; % 'temperature' 
+vq2 = sqrt(T2); 
+Um2 = 0; Vm2 = 2; % mean horizontal and vertical velocities
+color_2 = 'r'; % color used for plots 
+% Properties of the boundaries
+BC_left = 'RealWall'; % allowed values are 'PerfectWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are 'PerfectWall' and 'periodic'
+BC_right = 'RealWall';
+% in case left boundary is a real wall, one can impose the mean velocity and temperature 
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 2;
+
+X_fictive_surface= 0.5;
+% plotting parameters
+Nbin = 10; % number of vertical 'bins' for statistics
+fig1 = 1; % set to 1 for figure of particule positions in figure 1
+fig2 = 0; % set to 1 to plot 'pressure' force on right boundary and temperature in figure 2 
+fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
+fig4 = 0; % set to 1 to plot density of particules 1 at successive instants in figure 4 
+fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 0; % to plot 'stress' and flux of vertical momentum
+stepfig = 5; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
+stepfig4 = 20; % idem for fig. (4,5)
+% Numerical parameters
+Tmax = 10; % end of simulation 
+dt = 0.005; % time step ; dt should be smaller than diam/vq to resolve properly collisions
+diameter_for_plots = 345*particulediameter; % diameter or particules in pixels for plots
+Naveraging = 100000; % for time-averaging of pressure, etc... if large value average since beginning of simulation
+pausemode = 0; % set to 0 for automatic time advance, and to 1 for manual (press enter to advance) 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Choice 5 
+elseif(choice==5)
+
+% Dimensions
+Lx = 1;
+Ly = 1;
+particulediameter = 0.01; % 0.01 is a good value if N is of order 1000
+g= 0.;
+% Properties of particules 1 (initially in left half domain)
+Nparticules_1 = 500; 
+X1min = 0; X1max = .5; %min and max position of domain initially occupied
 T1 = 1; % 'temperature' 
 vq1 = sqrt(T1);
 Um1 = 0; Vm1 = 0; % mean horizontal and vertical velocities
@@ -222,18 +287,15 @@ vq2 = sqrt(T2);
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
 color_2 = 'b'; % color used for plots 
 % Properties of the boundaries
-BC_left = 'wall'; % allowed values are 'wall' and 'thermostat'
-BC_updown = 'periodic' % allowed values are 'wall' and 'periodic'
-BC_right = 'wall';
-% in case left boundary is a thermostat, one can impose the mean velocity
-% and temperature in an oscillating way
-Twall_m = 0;
-Twall_a = 0;
-Uwall_m = 0;
-Uwall_a = 0;
-Vwall_m = 1;
-Vwall_a = 0;
-omega = 0.1;
+BC_left = 'PerfectWall'; % allowed values are 'PerfectWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are 'PerfectWall' and 'periodic'
+BC_right = 'PerfectWall';
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 0;
 X_fictive_surface= 0.5;
 % plotting parameters
 Nbin = 10; % number of vertical 'bins' for statistics
@@ -242,6 +304,7 @@ fig2 = 0; % set to 1 to plot 'pressure' force on right boundary and temperature 
 fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
 fig4 = 0; % set to 1 to plot density of particules 1 at successive instants in figure 4 
 fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 0;
 stepfig = 2; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
 stepfig4 = 20; % idem for fig. (4,5)
 % Numerical parameters
@@ -252,8 +315,8 @@ Naveraging = 100000; % for time-averaging of pressure, etc... if large value ave
 pausemode = 0; % set to 0 for automatic time advance, and to 1 for manual (press enter to advance) 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Choice 5 
-elseif(choice==5)
+%% Choice 6 
+elseif(choice==6)
 
 % Dimensions
 Lx = 1;
@@ -275,18 +338,15 @@ vq2 = sqrt(T2);
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
 color_2 = 'b'; % color used for plots 
 % Properties of the boundaries
-BC_left = 'wall'; % allowed values are 'wall' and 'thermostat'
-BC_updown = 'periodic' % allowed values are 'wall' and 'periodic'
-BC_right = 'wall';
-% in case left boundary is a thermostat, one can impose the mean velocity
-% and temperature in an oscillating way
-Twall_m = 0;
-Twall_a = 0;
-Uwall_m = 0;
-Uwall_a = 0;
-Vwall_m = 0;
-Vwall_a = 0;
-omega = 0.1;
+BC_left = 'PerfectWall'; % allowed values are 'PerfectWall' and 'thermostat'
+BC_updown = 'periodic'; % allowed values are 'PerfectWall' and 'periodic'
+BC_right = 'PerfectWall';
+Twall_left = T1; 
+Twall_right = T1;
+Uwall_left = 0;
+Uwall_right = 0;
+Vwall_left = 0;
+Vwall_right = 0;
 X_fictive_surface= 0.5;
 % plotting parameters
 Nbin = 10; % number of vertical 'bins' for statistics
@@ -295,6 +355,7 @@ fig2 = 0; % set to 1 to plot 'pressure' force on right boundary and temperature 
 fig3 = 1; % set to 1 to plot statistics in vertical bins in figure 3;  
 fig4 = 0; % set to 1 to plot density of particules 1 at successive instants in figure 4 
 fig5 = 0; % set to 1 to plot vertical velocities at successive instants in figure 5
+fig6 = 0;
 stepfig = 2; % number of time steps between plot refreshing (for fig. 2,3) (raise to accelerate)
 stepfig4 = 20; % idem for fig. (4,5)
 % Numerical parameters
@@ -342,7 +403,7 @@ for i=1:2:Nbin+1
     Ycage(2*i+2) = -1;
 end
     t_tab = [];
-    F_tab = [];P_tab = [];
+    Fx_tab = [];Fy_tab = [];P_tab = [];Tauxy_tab = [];
     flux_momentum_x_tab=[];flux_momentum_y_tab=[]; 
     flux_momentum_x_av_tab=[];flux_momentum_y_av_tab=[]; 
     T_tab = [];
@@ -364,60 +425,72 @@ for i=1:Nbin
     end
     
     
-%%
-%% Beginning of time loop
-%%
+%%%
+%%% Beginning of time loop
+%%%
 
 for it=1:Tmax/dt
     t = (it-1)*dt;
     
-    % balistic part of the trajectory
+    %% balistic part of the trajectory
     X = X+dt*U;%-g*dt^2/2;
     Y = Y+dt*V;
     
-    % collisions with boundaries
-    Force_right_boundary = 0;
+    %% collisions with boundaries
+    Fx_right_boundary = 0;Fy_right_boundary = 0;
     for i=1:Nparticules
         if(X(i)<0&U(i)<0) %% collision with left boundary
-                if(strcmp(BC_left,'wall')==1) %left boundary treated as a wall 
+                if(strcmp(BC_left,'PerfectWall')==1) %left boundary treated as a wall 
                     U(i)=-U(i);
                     X(i)=-X(i);
-                elseif(strcmp(BC_left,'thermostat')==1) % left boundary treated as a "thermostat"
-                    X(i) = -X(i);
-                    U(i) = (Uwall_m+Uwall_a*sin(omega*t))...
-                    +sqrt(Twall_m+Twall_a*sin(omega*t))/sqrt(2)*abs(randn);
-                    V(i) = (Vwall_m+Vwall_a*sin(omega*t))...
-                    +sqrt(Twall_m+Twall_a*sin(omega*t))/sqrt(2)*(randn);
+%                elseif(strcmp(BC_left,'thermostat')==1) % left boundary treated as a "thermostat"
+%                    X(i) = -X(i);
+%                    U(i) = (Uwall_m+Uwall_a*sin(omega*t))...
+%                    +sqrt(Twall_m+Twall_a*sin(omega*t))/sqrt(2)*abs(randn);
+%                    V(i) = (Vwall_m+Vwall_a*sin(omega*t))...
+%                    +sqrt(Twall_m+Twall_a*sin(omega*t))/sqrt(2)*(randn);
+                elseif(strcmp(BC_left,'RealWall')==1)
+                     X(i) = -X(i);
+                     U(i) = Uwall_left+sqrt(Twall_left/2)*abs(randn(1));
+                     V(i) = Vwall_left+sqrt(Twall_left/2)*randn(1);
                 end
         end
          if(X(i)>Lx&U(i)>0) %% collision with right boundary
-            U(i)=-U(i);
+            Uians = U(i);
+            Vians = V(i);
             X(i)=Lx-(X(i)-Lx);
-           Force_right_boundary = Force_right_boundary-2*U(i)/dt;
+            if(strcmp(BC_right,'PerfectWall')==1)
+               U(i)=-U(i);
+             elseif(strcmp(BC_left,'RealWall')==1)
+               U(i) = Uwall_right-sqrt(Twall_right/2)*abs(randn(1));
+               V(i) = Vwall_right+sqrt(Twall_right/2)*randn(1);
+            end
+           Fx_right_boundary = Fx_right_boundary+(U(i)-Uians)/dt;
+           Fy_right_boundary = Fy_right_boundary-(V(i)-Vians)/dt;
          end
-         if(Y(i)<0)
-            Y(i)=Y(i)+Ly;
+         if(Y(i)<0) % upper boundary
+            Y(i)=Y(i)+Ly; % periodicity
          end
-         if(Y(i)>1)
-            Y(i)=Y(i)-Ly;
+         if(Y(i)>1) % lower boundary
+            Y(i)=Y(i)-Ly; % periodicity
          end
     end
     
-    % comptabilisation of flux across mid-surface
+    %% comptabilisation of flux across mid-surface
     flux_momentum_x = 0;flux_momentum_y = 0;
     for i = 1:Nparticules
     if((X(i)-dt*U(i)-X_fictive_surface)*(X(i)-X_fictive_surface)<0);
         if(U(i)>0) % particule crossing in positive direction
             flux_momentum_x = flux_momentum_x+U(i)/dt;
-            flux_momentum_y = flux_momentum_y+(V(i)-0)/dt; 
+            flux_momentum_y = flux_momentum_y+V(i)/dt; 
         else  % particule crossing in negative direction
-            flux_momentum_x = flux_momentum_x+(0-U(i))/dt;
-            flux_momentum_y = flux_momentum_y+(0-V(i))/dt; 
+            flux_momentum_x = flux_momentum_x-U(i)/dt;
+            flux_momentum_y = flux_momentum_y-V(i)/dt; 
         end
     end
     end
    
-    % elastic collisions between particules    
+    %% elastic collisions between particules    
     for i = 1:Nparticules
         for j=i+1:Nparticules
             distance = sqrt((X(i)-X(j))^2+(Y(i)-Y(j))^2);
@@ -438,10 +511,17 @@ for it=1:Tmax/dt
 
     %% statistics
     t_tab = [t_tab t]; 
-    F_tab = [F_tab Force_right_boundary];
-    P = mean(F_tab(max(1,it-Naveraging):it));
+    
+    % force exerted on right boundary
+    Fx_tab = [Fx_tab Fx_right_boundary];
+    P = mean(Fx_tab(max(1,it-Naveraging):it));
     P_tab = [P_tab P];
     
+    Fy_tab = [Fy_tab Fy_right_boundary];
+    Tauxy = mean(Fy_tab(max(1,it-Naveraging):it));
+    Tauxy_tab = [Tauxy_tab Tauxy];
+    
+    % flux of momentum on mid plane
     flux_momentum_x_tab = [flux_momentum_x_tab flux_momentum_x];
     meanx = mean(flux_momentum_x_tab(max(1,it-Naveraging):it));
     flux_momentum_x_av_tab = [flux_momentum_x_av_tab meanx];
@@ -458,17 +538,19 @@ for it=1:Tmax/dt
     %% plots
     
    
-     
+    %% Figure 1 : instantaneous positions of particules
     if(fig1==1)
         figure(1);
         hold off;
         plot([Lx Lx],[0 Ly]);
         hold on;
-           %% Figure 1 : instantaneous positions of particules
+           
+        
+     %% Figure 3 : statistics in vertical bins   
         if(fig3==1)
            plot(Xcage,Ycage,'k--') % draws the bins
         end
-        if (fig2==1)
+        if (fig6+fig2>0)
             plot([Lx Lx],[0 Ly],'m');
             plot([X_fictive_surface X_fictive_surface],[0 Ly],'c--');
         end
@@ -481,33 +563,51 @@ for it=1:Tmax/dt
         hold off;
     end
    
+    %% Figure 2 : Pressue on right boundary
     if(mod(t/dt,stepfig)==0)     
     if (fig2==1)
     figure(2);
-    subplot(6,1,1);
-    plot(t_tab,F_tab,'m');
-    title('Pressure Force on right boundary (instantaneous)');
-%    axes([0 1 0 1]);
+    subplot(2,1,1);
+    plot(t_tab,Fx_tab,'k:',t_tab,P_tab,'m');
+    title('Pressure Force on right boundary (instantaneous and averaged)');
+
+    subplot(2,1,2);
+    plot(t_tab,flux_momentum_x_tab,'k:',t_tab,flux_momentum_x_av_tab,'c');
+    title('Flux of horizontal momentum across mid-plane (instantaneous and averaged)');
+    end
+    end
+
     
-    subplot(6,1,2);
-    plot(t_tab,P_tab,'m');
-    title('Pressure Force on right boundary (averaged)');
+    %% Figure 6 : STRESS on right boundary
+    if(mod(t/dt,stepfig)==0)     
+    if (fig6==1)
+    figure(6);
+    subplot(3,1,1);
+    plot(t_tab,Fy_tab,'k:',t_tab,Tauxy_tab,'m');
+    title('Tangential stress on right boundary (instantaneous and averaged)');
+
+    subplot(3,1,2);
+    plot(t_tab,flux_momentum_y_tab,'k:',t_tab,flux_momentum_y_av_tab,'c');
+    title('Flux of vertical momentum across mid-plane (instantaneous and averaged)');
     
-    subplot(6,1,3);
-    plot(t_tab,flux_momentum_x_tab,'c');
-    title('Flux of horizontal momentum across mid-plane (instantaneous)');
+     subplot(3,1,1);
+    plot(t_tab,Fy_tab,'k:',t_tab,Tauxy_tab,'m');
+    title('Tangential stress on right boundary (instantaneous and averaged)');
+
+    subplot(3,1,3);
+    plot(t_tab,Tauxy_tab,'m',t_tab,flux_momentum_y_av_tab,'c');
+    title('averaged values for mid-plane flux and right boundary');
     
-    subplot(6,1,4);
-    plot(t_tab,flux_momentum_x_av_tab,'c');
-    title('Flux of horizontal momentum across mid-plane (averaged)');
-    
-    subplot(6,1,5);
-    plot(t_tab,flux_momentum_y_tab,'g');
-    title('Flux of vertical momentum across mid-plane (instantaneous)');
-    
-    subplot(6,1,6);
-    plot(t_tab,flux_momentum_y_av_tab,'g');
-    title('Flux of vertical momentum across mid-plane (averaged)');
+    end 
+    end
+ 
+ %   if(1==0)
+ %   subplot(4,1,3);
+ %   plot(t_tab,flux_momentum_y_tab,'g:',t_tab,flux_momentum_y_av_tab,'g');
+ %   title('Flux of vertical momentum across mid-plane (instantaneous and averaged)');
+ %   end
+%    plot(
+%    title('Flux of vertical momentum across mid-plane (averaged)');
     
 %    axes([0 1 0 1]); 
     
@@ -516,8 +616,7 @@ for it=1:Tmax/dt
 %    title('Temperature');
 
     
-    end
-    
+    %% Figure 3 
     
     for i=1:Nbin
     
@@ -533,6 +632,7 @@ for it=1:Tmax/dt
     
     end
     
+    %% Figure 3 : 
     if (fig3~=0)
     figure(3); 
     subplot(2,2,1);
@@ -556,7 +656,7 @@ for it=1:Tmax/dt
 
     subplot(2,2,3);
     plot(x_bin,Vmoy_bin,'c');
-    axis([0 1 min(Vm1,Vm2)-0.2*max(vq1,vq2) max([Vm1 Vm2 Vwall_m+Vwall_a])+0.2*max(vq1,vq2) ]);
+    axis([0 1 min([Vm1 Vm2 Vwall_left Vwall_right])-0.2*max(vq1,vq2) max([Vm1 Vm2 Vwall_left Vwall_right])+0.2*max(vq1,vq2) ]);
     title('mean vertical velocity');
     hold off;
     
@@ -587,11 +687,10 @@ for it=1:Tmax/dt
     
 %% end of time step    
     if(it~=1&pausemode==0)
-        pause(0.001); % laisse 1 miliseconde pour remettre à jour les figures.
+        pause(0.001); % laisse 1 miliseconde pour remettre ? jour les figures.
     else
-        pause % attend qu'on appuie sur entrée pour lancer l'animation
         disp(' Position the figures and press "enter" to launch the simulation : ');
+        pause % attend qu'on appuie sur entr?e pour lancer l'animation
     end
-    end
-
+    
 end
