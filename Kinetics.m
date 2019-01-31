@@ -52,16 +52,16 @@ Ly = 1;
 particulediameter = 0.01; % 0.01 is a good value if N is of order 1000
 g= 0.;
 % Properties of particules 1 (initially in left half domain)
-Nparticules_1 = 1000; 
+Nparticules_1 = 950; 
 X1min = 0; X1max = 1; %min and max position of domain initially occupied
-T1 = 2; % 'temperature' 
+T1 = 4; % 'temperature' 
 vq1 = sqrt(T1);
 Um1 = 0; Vm1 = 0; % mean horizontal and vertical velocities
 color_1 = 'b'; % color used for plots
 % Properties of particules 2 (initially in left half domain)
-Nparticules_2 = 000; 
-X2min = 0.5; X2max = 1; %min and max position of domain initially occupied
-T2 = 2; % 'temperature' 
+Nparticules_2 = 50; 
+X2min = 0; X2max = 1; %min and max position of domain initially occupied
+T2 = 4; % 'temperature' 
 vq2 = sqrt(T2); 
 Um2 = 0; Vm2 = 0; % mean horizontal and vertical velocities
 color_2 = 'r'; % color used for plots 
@@ -404,6 +404,7 @@ for i=1:2:Nbin+1
 end
     t_tab = [];
     Fx_tab = [];Fy_tab = [];P_tab = [];Tauxy_tab = [];
+    Fx_left_tab = [];Fy_left_tab = [];P_left_tab = [];Tauxy_left_tab = [];
     flux_momentum_x_tab=[];flux_momentum_y_tab=[]; 
     flux_momentum_x_av_tab=[];flux_momentum_y_av_tab=[]; 
     T_tab = [];
@@ -437,9 +438,11 @@ for it=1:Tmax/dt
     Y = Y+dt*V;
     
     %% collisions with boundaries
-    Fx_right_boundary = 0;Fy_right_boundary = 0;
+    Fx_right_boundary = 0;Fy_right_boundary = 0;Fx_left_boundary = 0;Fy_left_boundary = 0;
     for i=1:Nparticules
         if(X(i)<0&U(i)<0) %% collision with left boundary
+                Uians = U(i);
+                Vians = V(i);
                 if(strcmp(BC_left,'PerfectWall')==1) %left boundary treated as a wall 
                     U(i)=-U(i);
                     X(i)=-X(i);
@@ -454,6 +457,8 @@ for it=1:Tmax/dt
                      U(i) = Uwall_left+sqrt(Twall_left/2)*abs(randn(1));
                      V(i) = Vwall_left+sqrt(Twall_left/2)*randn(1);
                 end
+                Fx_left_boundary = Fx_left_boundary+(U(i)-Uians)/dt;
+                Fy_left_boundary = Fy_left_boundary-(V(i)-Vians)/dt;
         end
          if(X(i)>Lx&U(i)>0) %% collision with right boundary
             Uians = U(i);
@@ -465,8 +470,8 @@ for it=1:Tmax/dt
                U(i) = Uwall_right-sqrt(Twall_right/2)*abs(randn(1));
                V(i) = Vwall_right+sqrt(Twall_right/2)*randn(1);
             end
-           Fx_right_boundary = Fx_right_boundary+(U(i)-Uians)/dt;
-           Fy_right_boundary = Fy_right_boundary-(V(i)-Vians)/dt;
+           Fx_right_boundary = Fx_right_boundary-(U(i)-Uians)/dt;
+           Fy_right_boundary = Fy_right_boundary+(V(i)-Vians)/dt;
          end
          if(Y(i)<0) % upper boundary
             Y(i)=Y(i)+Ly; % periodicity
@@ -479,13 +484,13 @@ for it=1:Tmax/dt
     %% comptabilisation of flux across mid-surface
     flux_momentum_x = 0;flux_momentum_y = 0;
     for i = 1:Nparticules
-    if((X(i)-dt*U(i)-X_fictive_surface)*(X(i)-X_fictive_surface)<0);
+    if((X(i)-dt*U(i)-X_fictive_surface)*(X(i)-X_fictive_surface)<0)
         if(U(i)>0) % particule crossing in positive direction
             flux_momentum_x = flux_momentum_x+U(i)/dt;
-            flux_momentum_y = flux_momentum_y+V(i)/dt; 
+            flux_momentum_y = flux_momentum_y-V(i)/dt; 
         else  % particule crossing in negative direction
             flux_momentum_x = flux_momentum_x-U(i)/dt;
-            flux_momentum_y = flux_momentum_y-V(i)/dt; 
+            flux_momentum_y = flux_momentum_y+V(i)/dt; 
         end
     end
     end
@@ -521,6 +526,15 @@ for it=1:Tmax/dt
     Tauxy = mean(Fy_tab(max(1,it-Naveraging):it));
     Tauxy_tab = [Tauxy_tab Tauxy];
     
+    % force exerted on left boundary
+    Fx_left_tab = [Fx_left_tab Fx_left_boundary];
+    P_left = mean(Fx_left_tab(max(1,it-Naveraging):it));
+    P_left_tab = [P_left_tab P_left];
+    
+    Fy_left_tab = [Fy_left_tab Fy_left_boundary];
+    Tauxy_left = mean(Fy_left_tab(max(1,it-Naveraging):it));
+    Tauxy_left_tab = [Tauxy_left_tab Tauxy_left];
+    
     % flux of momentum on mid plane
     flux_momentum_x_tab = [flux_momentum_x_tab flux_momentum_x];
     meanx = mean(flux_momentum_x_tab(max(1,it-Naveraging):it));
@@ -542,7 +556,8 @@ for it=1:Tmax/dt
     if(fig1==1)
         figure(1);
         hold off;
-        plot([Lx Lx],[0 Ly]);
+        plot([Lx Lx],[0 Ly],'m');
+        plot([0 0],[0 Ly],'g');
         hold on;
            
         
@@ -567,13 +582,24 @@ for it=1:Tmax/dt
     if(mod(t/dt,stepfig)==0)     
     if (fig2==1)
     figure(2);
-    subplot(2,1,1);
+    subplot(4,1,1);
     plot(t_tab,Fx_tab,'k:',t_tab,P_tab,'m');
     title('Pressure Force on right boundary (instantaneous and averaged)');
+    
+    subplot(4,1,2);
+    plot(t_tab,Fx_left_tab,'k:',t_tab,P_left_tab,'g');
+    title('Pressure Force on right boundary (instantaneous and averaged)');
 
-    subplot(2,1,2);
+    subplot(4,1,3);
     plot(t_tab,flux_momentum_x_tab,'k:',t_tab,flux_momentum_x_av_tab,'c');
     title('Flux of horizontal momentum across mid-plane (instantaneous and averaged)');
+    
+    subplot(4,1,4);
+    plot(t_tab,P_tab,'m',t_tab,P_left_tab,'g',t_tab,flux_momentum_x_av_tab,'c');
+    title('Pressure : comparison of three estimations')
+    
+   
+    
     end
     end
 
@@ -582,20 +608,22 @@ for it=1:Tmax/dt
     if(mod(t/dt,stepfig)==0)     
     if (fig6==1)
     figure(6);
-    subplot(3,1,1);
+    subplot(4,1,1);
     plot(t_tab,Fy_tab,'k:',t_tab,Tauxy_tab,'m');
     title('Tangential stress on right boundary (instantaneous and averaged)');
 
-    subplot(3,1,2);
+      
+    subplot(4,1,2);
+    plot(t_tab,Fy_tab,'k:',t_tab,Tauxy_left_tab,'g');
+    title('Tangential stress on left boundary (instantaneous and averaged)');
+    
+    subplot(4,1,3);
     plot(t_tab,flux_momentum_y_tab,'k:',t_tab,flux_momentum_y_av_tab,'c');
     title('Flux of vertical momentum across mid-plane (instantaneous and averaged)');
-    
-     subplot(3,1,1);
-    plot(t_tab,Fy_tab,'k:',t_tab,Tauxy_tab,'m');
-    title('Tangential stress on right boundary (instantaneous and averaged)');
+  
 
-    subplot(3,1,3);
-    plot(t_tab,Tauxy_tab,'m',t_tab,flux_momentum_y_av_tab,'c');
+    subplot(4,1,4);
+    plot(t_tab,Tauxy_tab,'m',t_tab,Tauxy_left_tab,'g',t_tab,flux_momentum_y_av_tab,'c');
     title('averaged values for mid-plane flux and right boundary');
     
     end 
